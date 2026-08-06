@@ -38,3 +38,33 @@ jobs:
         run: npm run build
       - name: Production dependency audit
         run: npm audit --omit=dev --audit-level=high
+
+  release:
+    name: Publish release
+    needs: quality
+    if: github.event_name == 'push' && startsWith(github.event.head_commit.message, 'release: ')
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Create tag and release archive
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git fetch --tags --force
+          version="v$(node -p "require('./package.json').version")"
+          archive="finance-management-app-${version#v}.zip"
+          if ! git rev-parse "$version^{commit}" >/dev/null 2>&1; then
+            git tag -a "$version" -m "Finance Management App $version"
+            git push origin "$version"
+          fi
+          git archive --format=zip --prefix="finance-management-app-${version#v}/" --output="$archive" HEAD
+          if ! gh release view "$version" >/dev/null 2>&1; then
+            gh release create "$version" "$archive" --verify-tag --generate-notes --title "Finance Management App $version"
+          fi

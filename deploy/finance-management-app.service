@@ -1,0 +1,27 @@
+[Unit]
+Description=Finance Management App
+After=network.target
+
+[Service]
+Type=simple
+User=financeapp
+Group=financeapp
+WorkingDirectory=/opt/finance-management-app
+EnvironmentFile=/etc/finance-management-app/app.env
+ExecStart=/usr/bin/node server/index.mjs
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=15
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+ReadWritePaths=/var/lib/finance-management-app
+
+[Install]
+WantedBy=multi-user.target

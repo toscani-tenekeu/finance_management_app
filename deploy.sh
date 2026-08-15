@@ -150,7 +150,7 @@ systemctl restart finance-management-app.service
 
 healthy=false
 for _ in {1..20}; do
-  if curl -fsS "http://127.0.0.1:7410/api/health" >/dev/null; then
+  if curl -fsS "http://127.0.0.1:7410/api/health" >/dev/null 2>&1; then
     healthy=true
     break
   fi
@@ -165,9 +165,22 @@ fi
 configure_firewall
 
 echo
-echo "Finance Management App est actif sur le port 7410."
-if [[ -n "$admin_credentials" ]]; then
-  echo "Identifiants initiaux (à conserver immédiatement) : $admin_credentials"
+echo "Installation terminée avec succès."
+echo "Application : Finance Management App"
+echo "Accès local : http://127.0.0.1:7410"
+server_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+if [[ -n "$server_ip" ]]; then
+  echo "Accès réseau : http://${server_ip}:7410"
 fi
-echo "Commandes : finance-app help"
+echo "Service : finance-management-app.service (actif)"
+if [[ -n "$admin_credentials" ]]; then
+  admin_password="$(FINANCE_INIT_JSON="$admin_credentials" /usr/bin/node -e "process.stdout.write(JSON.parse(process.env.FINANCE_INIT_JSON).password)")"
+  echo
+  echo "Compte administrateur initial"
+  echo "  Utilisateur : admin"
+  echo "  Mot de passe : $admin_password"
+  echo "Conservez ce mot de passe maintenant. Vous pourrez ensuite le changer avec : finance-app reset-password admin"
+fi
+echo
+echo "Commandes utiles : finance-app help | finance-app status"
 echo "Avant une exposition publique, configurez un domaine, un reverse proxy et un certificat SSL."

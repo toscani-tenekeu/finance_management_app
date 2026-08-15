@@ -18,6 +18,8 @@ curl -fsSL https://raw.githubusercontent.com/toscani-tenekeu/finance_management_
 
 L’installateur demande une installation neuve ou la restauration d’un backup complet, installe Node.js 22 si nécessaire, exécute tous les contrôles et démarre le service sur le port `7410`.
 
+En cas de coupure temporaire du registre npm, l’installation réessaie automatiquement jusqu’à cinq fois. Après un échec complet, relancez simplement la même commande : l’installation reprend sans supprimer les données existantes.
+
 > Il est fortement conseillé d’installer un certificat SSL avec Nginx ou Caddy avant d’exposer l’application sur Internet. Après activation de HTTPS, définissez `COOKIE_SECURE=true` dans `/etc/finance-management-app/app.env`, puis redémarrez le service.
 
 ## Commandes

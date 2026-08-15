@@ -10,8 +10,36 @@ ENV_FILE="$CONFIG_DIR/app.env"
 SERVICE_FILE="/etc/systemd/system/finance-management-app.service"
 CLI_FILE="/usr/local/bin/finance-app"
 UPDATE_ONLY=false
+NPM_INSTALL_ATTEMPTS=5
 
 [[ "${1:-}" == "--update" ]] && UPDATE_ONLY=true
+
+npm_ci_with_retry() {
+  local attempt delay
+
+  for ((attempt = 1; attempt <= NPM_INSTALL_ATTEMPTS; attempt += 1)); do
+    echo "Installation des dépendances npm (tentative $attempt/$NPM_INSTALL_ATTEMPTS)…"
+    if npm ci \
+      --no-audit \
+      --no-fund \
+      --fetch-retries=5 \
+      --fetch-retry-factor=2 \
+      --fetch-retry-mintimeout=10000 \
+      --fetch-retry-maxtimeout=120000 \
+      --fetch-timeout=300000; then
+      return 0
+    fi
+
+    if (( attempt == NPM_INSTALL_ATTEMPTS )); then
+      echo "Échec npm après $NPM_INSTALL_ATTEMPTS tentatives. Vérifiez l’accès à registry.npmjs.org, puis relancez la même commande."
+      return 1
+    fi
+
+    delay=$((attempt * 10))
+    echo "Connexion npm instable. Nouvelle tentative dans ${delay}s…"
+    sleep "$delay"
+  done
+}
 
 if [[ ${EUID} -ne 0 ]]; then
   exec sudo "$0" "$@"
@@ -62,7 +90,7 @@ else
 fi
 
 cd "$APP_DIR"
-npm ci
+npm_ci_with_retry
 npm run check
 
 if [[ ! -f "$ENV_FILE" ]]; then
@@ -94,7 +122,7 @@ fi
 
 chown -R root:root "$APP_DIR"
 chown -R financeapp:financeapp "$DATA_DIR"
-npm prune --omit=dev
+npm prune --omit=dev --no-audit --no-fund
 
 systemctl daemon-reload
 systemctl enable --now finance-management-app.service

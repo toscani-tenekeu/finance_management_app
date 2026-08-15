@@ -41,6 +41,26 @@ npm_ci_with_retry() {
   done
 }
 
+configure_firewall() {
+  if ! command -v ufw >/dev/null 2>&1; then
+    echo "UFW n’est pas installé : aucun firewall n’est modifié."
+    return 0
+  fi
+
+  if ! ufw status 2>/dev/null | grep -q '^Status: active'; then
+    echo "UFW est désactivé : il reste désactivé, aucune règle n’est ajoutée."
+    return 0
+  fi
+
+  if ufw status 2>/dev/null | grep -q '^7410/tcp'; then
+    echo "UFW autorise déjà le port 7410/tcp."
+    return 0
+  fi
+
+  ufw allow 7410/tcp comment 'Finance Management App' >/dev/null
+  echo "Règle UFW ajoutée : 7410/tcp."
+}
+
 if [[ ${EUID} -ne 0 ]]; then
   exec sudo "$0" "$@"
 fi
@@ -141,6 +161,8 @@ if [[ "$healthy" != true ]]; then
   echo "Le service n’a pas répondu sur le port 7410."
   exit 1
 fi
+
+configure_firewall
 
 echo
 echo "Finance Management App est actif sur le port 7410."

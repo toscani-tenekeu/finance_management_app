@@ -1,5 +1,7 @@
 # Finance Management App
 
+Version publiée : **v1.0.4**.
+
 Application Node.js auto-hébergée pour suivre soldes, dépenses, revenus, épargne mensuelle, imprévus et prévisions. Toutes les données sont stockées localement dans SQLite.
 
 ## Prérequis

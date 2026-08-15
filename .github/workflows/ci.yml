@@ -61,7 +61,7 @@ jobs:
           version="v$(node -p "require('./package.json').version")"
           archive="finance-management-app-${version#v}.zip"
           if ! git rev-parse "$version^{commit}" >/dev/null 2>&1; then
-            git tag -a "$version" -m "Finance Management App $version"
+            git tag -a "$version" -m "$version"
             git push origin "$version"
           fi
           git archive --format=zip --prefix="finance-management-app-${version#v}/" --output="$archive" HEAD

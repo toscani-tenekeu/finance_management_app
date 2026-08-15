@@ -98,6 +98,101 @@ chown financeapp:financeapp "$DATA_DIR"
 chmod 750 "$DATA_DIR" "$CONFIG_DIR"
 
 if [[ -d "$APP_DIR/.git" ]]; then
+  local_changes="$(git -C "$APP_DIR" status --porcelain --untracked-files=all)"
+  unexpected_changes="$(printf '%s\\n' "$local_changes" | grep -vE '^[ MARC?]{2}[[:space:]]+package-lock\\.json
+  if [[ -e "$APP_DIR" ]]; then
+    echo "$APP_DIR existe mais n’est pas un clone Git valide."
+    exit 1
+  fi
+  git clone --branch "$BRANCH" --single-branch "$REPOSITORY_URL" "$APP_DIR"
+fi
+
+cd "$APP_DIR"
+npm_ci_with_retry
+npm run check
+
+if [[ ! -f "$ENV_FILE" ]]; then
+  install -m 640 -o root -g financeapp deploy/app.env "$ENV_FILE"
+fi
+install -m 644 deploy/finance-management-app.service "$SERVICE_FILE"
+install -m 755 scripts/finance-app.sh "$CLI_FILE"
+chmod 755 deploy.sh scripts/uninstall.sh scripts/cli.mjs
+
+admin_credentials=""
+if [[ ! -f "$DATA_DIR/finance.db" ]]; then
+  mode="fresh"
+  if [[ "$UPDATE_ONLY" == false ]]; then
+    echo "Mode d’installation :"
+    echo "1) Nouvelle installation"
+    echo "2) Restaurer un backup complet .fmbak"
+    read -r -p "Choix [1/2] : " choice </dev/tty
+    [[ "$choice" == "2" ]] && mode="restore"
+  fi
+
+  if [[ "$mode" == "restore" ]]; then
+    read -r -p "Chemin du backup complet : " backup_path </dev/tty
+    [[ -f "$backup_path" ]] || { echo "Backup introuvable."; exit 1; }
+    DATABASE_PATH="$DATA_DIR/finance.db" /usr/bin/node scripts/cli.mjs restore-all "$backup_path" --replace
+  else
+    admin_credentials="$(runuser -u financeapp -- env DATABASE_PATH="$DATA_DIR/finance.db" /usr/bin/node scripts/cli.mjs init --username admin --json)"
+  fi
+fi
+
+chown -R root:root "$APP_DIR"
+chown -R financeapp:financeapp "$DATA_DIR"
+npm prune --omit=dev --no-audit --no-fund --package-lock=false
+
+systemctl daemon-reload
+systemctl enable --now finance-management-app.service
+systemctl restart finance-management-app.service
+
+healthy=false
+for _ in {1..20}; do
+  if curl -fsS "http://127.0.0.1:7410/api/health" >/dev/null 2>&1; then
+    healthy=true
+    break
+  fi
+  sleep 1
+done
+if [[ "$healthy" != true ]]; then
+  systemctl status finance-management-app.service --no-pager || true
+  echo "Le service n’a pas répondu sur le port 7410."
+  exit 1
+fi
+
+configure_firewall
+
+echo
+echo "Installation terminée avec succès."
+echo "Application : Finance Management App"
+echo "Accès local : http://127.0.0.1:7410"
+server_ip="$(hostname -I 2>/dev/null | awk '{print $1}')"
+if [[ -n "$server_ip" ]]; then
+  echo "Accès réseau : http://${server_ip}:7410"
+fi
+echo "Service : finance-management-app.service (actif)"
+if [[ -n "$admin_credentials" ]]; then
+  admin_password="$(FINANCE_INIT_JSON="$admin_credentials" /usr/bin/node -e "process.stdout.write(JSON.parse(process.env.FINANCE_INIT_JSON).password)")"
+  echo
+  echo "Compte administrateur initial"
+  echo "  Utilisateur : admin"
+  echo "  Mot de passe : $admin_password"
+  echo "Conservez ce mot de passe maintenant. Vous pourrez ensuite le changer avec : finance-app reset-password admin"
+fi
+echo
+echo "Commandes utiles : finance-app help | finance-app status"
+echo "Avant une exposition publique, configurez un domaine, un reverse proxy et un certificat SSL."
+ || true)"
+  if [[ -n "$unexpected_changes" ]]; then
+    echo "Modifications locales détectées dans $APP_DIR :"
+    printf '%s\\n' "$unexpected_changes"
+    echo "Supprimez ou sauvegardez ces modifications, puis relancez : sudo finance-app update"
+    exit 1
+  fi
+  if [[ -n "$local_changes" ]]; then
+    git -C "$APP_DIR" restore --source=HEAD --staged --worktree -- package-lock.json
+    echo "Modification locale automatique de package-lock.json ignorée."
+  fi
   git -C "$APP_DIR" fetch origin "$BRANCH"
   git -C "$APP_DIR" checkout "$BRANCH"
   git -C "$APP_DIR" pull --ff-only origin "$BRANCH"

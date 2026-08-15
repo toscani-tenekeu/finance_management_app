@@ -41,6 +41,13 @@ async function login(origin, username, password) {
 }
 
 describe('local API authorization', () => {
+  it('keeps HTTP assets usable before SSL is configured', async () => {
+    const { origin } = await testServer()
+    const response = await fetch(`${origin}/`)
+    expect(response.headers.get('content-security-policy')).not.toContain('upgrade-insecure-requests')
+    expect(response.headers.get('strict-transport-security')).toBeNull()
+  })
+
   it('isolates finance rows and reserves UI user creation for admin', async () => {
     const { origin } = await testServer()
     const adminCookie = await login(origin, 'admin', 'admin-password-123')

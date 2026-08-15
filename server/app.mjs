@@ -51,6 +51,7 @@ export function createApp({ db, distPath }) {
   if (process.env.TRUST_PROXY) app.set('trust proxy', process.env.TRUST_PROXY)
   app.use(
     helmet({
+      hsts: process.env.COOKIE_SECURE === 'true',
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
@@ -59,6 +60,7 @@ export function createApp({ db, distPath }) {
           styleSrc: ["'self'", "'unsafe-inline'"],
           scriptSrc: ["'self'"],
           fontSrc: ["'self'", 'data:'],
+          'upgrade-insecure-requests': null,
         },
       },
       crossOriginEmbedderPolicy: false,

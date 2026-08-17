@@ -66,5 +66,5 @@ jobs:
           fi
           git archive --format=zip --prefix="finance-management-app-${version#v}/" --output="$archive" HEAD
           if ! gh release view "$version" >/dev/null 2>&1; then
-            gh release create "$version" "$archive" --verify-tag --generate-notes --title "Finance Management App $version"
+            gh release create "$version" "$archive" --verify-tag --generate-notes --title "$version"
           fi
